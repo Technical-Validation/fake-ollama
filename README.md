@@ -1,8 +1,8 @@
-# fakeOllama
+# fake-ollama
 
 ## 项目简介
 
-fakeOllama 是一个 Rust 编写的代理服务器，用于模拟 Ollama API 接口，同时将请求转发到兼容 OpenAI API 格式的后端服务（如 OpenAI、Azure OpenAI、本地部署的开源模型等）。这个工具特别适合开发环境中测试和集成 Ollama 客户端应用，而无需运行完整的 Ollama 服务。
+fake-ollama 是一个 Rust 编写的代理服务器，用于模拟 Ollama API 接口，同时将请求转发到兼容 OpenAI API 格式的后端服务（如 OpenAI、Azure OpenAI、本地部署的开源模型等）。这个工具特别适合开发环境中测试和集成 Ollama 客户端应用，而无需运行完整的 Ollama 服务。
 
 ## 主要功能
 
@@ -36,7 +36,7 @@ cargo run -- --url https://api.openai.com --api-key your-api-key --enabled-model
 
 ### API 端点
 
-fakeOllama 服务器在 `http://127.0.0.1:11434` 上运行，提供以下端点：
+fake-ollama 服务器在 `http://127.0.0.1:11434` 上运行，提供以下端点：
 
 - `GET /`: 状态检查
 - `POST /api/chat`: Ollama 聊天 API

@@ -1,4 +1,4 @@
 #[tokio::main]
 async fn main() {
-    fakeOllama::main().await;
+    fake_ollama::main().await;
 }

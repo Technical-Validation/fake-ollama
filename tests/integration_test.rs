@@ -1,5 +1,5 @@
 
-use fakeOllama::{run, Args};
+use fake_ollama::{run, Args};
 use wiremock::{MockServer, Mock, ResponseTemplate};
 use wiremock::matchers::{method, path};
 use std::thread;
@@ -25,7 +25,7 @@ data: [DONE]
         .mount(&mock_server)
         .await;
 
-    // 2. Run the fakeOllama server in the background
+    // 2. Run the fake_ollama server in the background
     let server_uri = mock_server.uri();
     let args = Args {
         url: server_uri,
@@ -44,7 +44,7 @@ data: [DONE]
     });
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-    // 3. Make a request to the fakeOllama server
+    // 3. Make a request to the fake_ollama server
     let client = reqwest::Client::new();
     let res = client.post("http://127.0.0.1:11434/api/chat")
         .json(&serde_json::json!({
