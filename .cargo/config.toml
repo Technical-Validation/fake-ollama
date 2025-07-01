@@ -1,0 +1,11 @@
+[build]
+# 默认构建目标（多个目标用逗号分隔）
+target = ["x86_64-pc-windows-gnu", "x86_64-unknown-linux-gnu"]
+
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+ar = "x86_64-w64-mingw32-gcc-ar"
+
+[target.x86_64-unknown-linux-gnu]
+linker = "gcc"
+ar = "ar"

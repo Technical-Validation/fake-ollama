@@ -1,0 +1,118 @@
+Index: .idea/.gitignore
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/.gitignore b/.idea/.gitignore
+new file mode 100644
+--- /dev/null	(date 1751346857574)
++++ b/.idea/.gitignore	(date 1751346857574)
+@@ -0,0 +1,8 @@
++# 默认忽略的文件
++/shelf/
++/workspace.xml
++# 基于编辑器的 HTTP 客户端请求
++/httpRequests/
++# Datasource local storage ignored files
++/dataSources/
++/dataSources.local.xml
+Index: tests/integration_test.rs
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>\nuse fakeOllama::{run, Args};\nuse wiremock::{MockServer, Mock, ResponseTemplate};\nuse wiremock::matchers::{method, path};\nuse std::thread;\nuse reqwest;\nuse futures_util::StreamExt;\nuse serde_json::Value;\n\n#[tokio::test]\nasync fn test_chat_streaming_integration() {\n    // 1. Set up a mock server\n    let mock_server = MockServer::start().await;\n\n    let response_body = \"data: {\\\"choices\\\":[{\\\"delta\\\":{\\\"content\\\":\\\"Hello\\\"}}]}\n\ndata: {\\\"choices\\\":[{\\\"delta\\\":{\\\"content\\\":\\\" World\\\"}}]}\n\ndata: [DONE]\n\";\n\n    Mock::given(method(\"POST\"))\n        .and(path(\"/v1/chat/completions\"))\n        .respond_with(ResponseTemplate::new(200).set_body_string(response_body))\n        .mount(&mock_server)\n        .await;\n\n    // 2. Run the fakeOllama server in the background\n    let server_uri = mock_server.uri();\n    let args = Args {\n        url: server_uri,\n        api_key: \"test_api_key\".to_string(),\n        enabled_models: vec![\"llama2\".to_string(), \"mistral\".to_string()],\n    };\n    \n    thread::spawn(move || {\n        let _ = tokio::runtime::Builder::new_current_thread()\n            .enable_all()\n            .build()\n            .unwrap()\n            .block_on(async {\n                run(args).await;\n            });\n    });\n    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;\n\n    // 3. Make a request to the fakeOllama server\n    let client = reqwest::Client::new();\n    let res = client.post(\"http://127.0.0.1:11434/api/chat\")\n        .json(&serde_json::json!({\n            \"model\": \"llama2\",\n            \"messages\": [{\"role\": \"user\", \"content\": \"Hey there!\"}],\n            \"stream\": true\n        }))\n        .send()\n        .await\n        .expect(\"Failed to send request\");\n\n    // 4. Assert the response\n    assert_eq!(res.status(), reqwest::StatusCode::OK);\n\n    let mut stream = res.bytes_stream();\n    let mut responses = Vec::new();\n    while let Some(item) = stream.next().await {\n        let chunk = item.expect(\"Error while streaming\");\n        let s = String::from_utf8(chunk.to_vec()).unwrap();\n        for line in s.lines() {\n            if !line.is_empty() {\n                responses.push(serde_json::from_str::<Value>(line).unwrap());\n            }\n        }\n    }\n\n    assert_eq!(responses.len(), 3);\n    assert_eq!(responses[0][\"message\"][\"content\"], \"Hello\");\n    assert_eq!(responses[1][\"message\"][\"content\"], \" World\");\n    assert_eq!(responses[2][\"done\"], true);\n}\n\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/tests/integration_test.rs b/tests/integration_test.rs
+--- a/tests/integration_test.rs	(revision e714e2c481d9944ca2153b9ef0c412a1d548c70f)
++++ b/tests/integration_test.rs	(date 1751342724830)
+@@ -1,5 +1,5 @@
+ 
+-use fakeOllama::{run, Args};
++use fakeOllama::{run, Args, OllamaTagsResponse};
+ use wiremock::{MockServer, Mock, ResponseTemplate};
+ use wiremock::matchers::{method, path};
+ use std::thread;
+@@ -12,7 +12,7 @@
+     // 1. Set up a mock server
+     let mock_server = MockServer::start().await;
+ 
+-    let response_body = "data: {\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}
++    let chat_response_body = "data: {\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}
+ 
+ data: {\"choices\":[{\"delta\":{\"content\":\" World\"}}]}
+ 
+@@ -21,7 +21,33 @@
+ 
+     Mock::given(method("POST"))
+         .and(path("/v1/chat/completions"))
+-        .respond_with(ResponseTemplate::new(200).set_body_string(response_body))
++        .respond_with(ResponseTemplate::new(200).set_body_string(chat_response_body))
++        .mount(&mock_server)
++        .await;
++
++    let tags_response_body = serde_json::json!({
++        "models": [
++            {
++                "name": "llama2:latest",
++                "model": "llama2:latest",
++                "modified_at": "2025-07-01T04:03:47Z",
++                "size": 0,
++                "digest": "",
++                "details": {
++                    "parent_model": "",
++                    "format": "gguf",
++                    "family": "llama",
++                    "families": ["llama"],
++                    "parameter_size": "7B",
++                    "quantization_level": "Q4_0"
++                }
++            }
++        ]
++    });
++
++    Mock::given(method("GET"))
++        .and(path("/api/tags"))
++        .respond_with(ResponseTemplate::new(200).set_body_json(tags_response_body))
+         .mount(&mock_server)
+         .await;
+ 
+@@ -30,7 +56,6 @@
+     let args = Args {
+         url: server_uri,
+         api_key: "test_api_key".to_string(),
+-        enabled_models: vec!["llama2".to_string(), "mistral".to_string()],
+     };
+     
+     thread::spawn(move || {
+@@ -44,8 +69,20 @@
+     });
+     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+ 
+-    // 3. Make a request to the fakeOllama server
++    // 3. Make a request to the fakeOllama server's /api/tags endpoint
+     let client = reqwest::Client::new();
++    let res: OllamaTagsResponse = client.get("http://127.0.0.1:11434/api/tags")
++        .send()
++        .await
++        .expect("Failed to send request")
++        .json()
++        .await
++        .expect("Failed to parse response");
++
++    assert_eq!(res.models.len(), 1);
++    assert_eq!(res.models[0].name, "llama2:latest");
++
++    // 4. Make a request to the fakeOllama server's /api/chat endpoint
+     let res = client.post("http://127.0.0.1:11434/api/chat")
+         .json(&serde_json::json!({
+             "model": "llama2",
+@@ -56,7 +93,7 @@
+         .await
+         .expect("Failed to send request");
+ 
+-    // 4. Assert the response
++    // 5. Assert the response
+     assert_eq!(res.status(), reqwest::StatusCode::OK);
+ 
+     let mut stream = res.bytes_stream();
